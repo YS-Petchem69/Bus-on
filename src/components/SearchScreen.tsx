@@ -81,7 +81,7 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({
       (price * 0.5 * childCount) + // 아동: 50% 할인
       (price * 0.7 * senior65Count) + // 65-74세: 30% 할인
       (price * 0.6 * senior75Count) + // 75세 이상: 40% 할인
-      (price * 0.7 * militaryCount); // 군필자: 30% 할인
+      (price * 0.7 * militaryCount); // 현역 군인: 30% 할인
     return Math.floor(totalPrice);
   };
 
@@ -297,7 +297,7 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({
                 {childCount > 0 && ` · 아동 ${childCount}명`}
                 {senior65Count > 0 && ` · 경로 65-74 ${senior65Count}명`}
                 {senior75Count > 0 && ` · 경로 75+ ${senior75Count}명`}
-                {militaryCount > 0 && ` · 군필 ${militaryCount}명`}
+                {militaryCount > 0 && ` · 현역 ${militaryCount}명`}
               </span>
             </div>
           </div>
@@ -698,8 +698,8 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({
             {/* Military Counter */}
             <div className="flex items-center justify-between py-2 border-t">
               <div>
-                <p className="font-bold text-sm">군필자 (30% 할인)</p>
-                <p className="text-xs text-gray-500">20개월 이상 복무 종료자</p>
+                <p className="font-bold text-sm">현역 군인 (30% 할인)</p>
+                <p className="text-xs text-gray-500">현역복무 중인 군인</p>
               </div>
               <div className="flex items-center gap-3">
                 <button
