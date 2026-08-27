@@ -29,6 +29,9 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({
   const [selectedDate, setSelectedDate] = useState('10월 24일 (화)');
   const [adultCount, setAdultCount] = useState(1);
   const [childCount, setChildCount] = useState(0);
+  const [senior65Count, setSenior65Count] = useState(0);
+  const [senior75Count, setSenior75Count] = useState(0);
+  const [militaryCount, setMilitaryCount] = useState(0);
 
   // Modals & Flow
   const [showTerminalModal, setShowTerminalModal] = useState<'origin' | 'destination' | null>(null);
@@ -69,8 +72,21 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({
     }
   };
 
+  // 승차 인원별 가격 계산
+  const calculatePassengerBasePrice = () => {
+    if (!selectedSchedule) return 0;
+    const price = selectedSchedule.price;
+    const totalPrice =
+      price * adultCount +
+      (price * 0.5 * childCount) + // 아동: 50% 할인
+      (price * 0.7 * senior65Count) + // 65-74세: 30% 할인
+      (price * 0.6 * senior75Count) + // 75세 이상: 40% 할인
+      (price * 0.7 * militaryCount); // 군필자: 30% 할인
+    return Math.floor(totalPrice);
+  };
+
   // 최종 가격 계산
-  const basePrice = selectedSchedule ? selectedSchedule.price * adultCount : 0;
+  const basePrice = calculatePassengerBasePrice();
   const discountAmount = calculateDiscountAmount(basePrice, selectedCoupon);
   const finalPrice = basePrice - discountAmount;
 
@@ -124,9 +140,16 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({
       : undefined;
 
     // 최종 가격 계산
-    const basePrice = selectedSchedule.price * adultCount;
-    const discount = calculateDiscountAmount(basePrice, selectedCoupon);
-    const finalBookingPrice = basePrice - discount;
+    const price = selectedSchedule.price;
+    const bookingBasePrice = Math.floor(
+      price * adultCount +
+      (price * 0.5 * childCount) +
+      (price * 0.7 * senior65Count) +
+      (price * 0.6 * senior75Count) +
+      (price * 0.7 * militaryCount)
+    );
+    const discount = calculateDiscountAmount(bookingBasePrice, selectedCoupon);
+    const finalBookingPrice = bookingBasePrice - discount;
 
     const newTicket: Ticket = {
       id: `TK-${Date.now().toString().slice(-6)}`,
@@ -270,7 +293,11 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({
             <div className="flex flex-col">
               <span className="text-[11px] text-[#737685]">인원</span>
               <span className="text-[16px] text-[#191c1e] font-semibold">
-                어른 {adultCount}명 {childCount > 0 && `· 아동 ${childCount}명`}
+                어른 {adultCount}명
+                {childCount > 0 && ` · 아동 ${childCount}명`}
+                {senior65Count > 0 && ` · 경로 65-74 ${senior65Count}명`}
+                {senior75Count > 0 && ` · 경로 75+ ${senior75Count}명`}
+                {militaryCount > 0 && ` · 군필 ${militaryCount}명`}
               </span>
             </div>
           </div>
@@ -613,6 +640,78 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({
                 <span className="font-bold text-base w-4 text-center">{childCount}</span>
                 <button
                   onClick={() => setChildCount(childCount + 1)}
+                  className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center"
+                >
+                  +
+                </button>
+              </div>
+            </div>
+
+            {/* Senior 65-74 Counter */}
+            <div className="flex items-center justify-between py-2 border-t">
+              <div>
+                <p className="font-bold text-sm">경로 (65-74세, 30% 할인)</p>
+                <p className="text-xs text-gray-500">65세 이상 74세 이하</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  disabled={senior65Count <= 0}
+                  onClick={() => setSenior65Count(senior65Count - 1)}
+                  className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center disabled:opacity-30"
+                >
+                  -
+                </button>
+                <span className="font-bold text-base w-4 text-center">{senior65Count}</span>
+                <button
+                  onClick={() => setSenior65Count(senior65Count + 1)}
+                  className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center"
+                >
+                  +
+                </button>
+              </div>
+            </div>
+
+            {/* Senior 75+ Counter */}
+            <div className="flex items-center justify-between py-2 border-t">
+              <div>
+                <p className="font-bold text-sm">경로 (75세 이상, 40% 할인)</p>
+                <p className="text-xs text-gray-500">75세 이상</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  disabled={senior75Count <= 0}
+                  onClick={() => setSenior75Count(senior75Count - 1)}
+                  className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center disabled:opacity-30"
+                >
+                  -
+                </button>
+                <span className="font-bold text-base w-4 text-center">{senior75Count}</span>
+                <button
+                  onClick={() => setSenior75Count(senior75Count + 1)}
+                  className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center"
+                >
+                  +
+                </button>
+              </div>
+            </div>
+
+            {/* Military Counter */}
+            <div className="flex items-center justify-between py-2 border-t">
+              <div>
+                <p className="font-bold text-sm">군필자 (30% 할인)</p>
+                <p className="text-xs text-gray-500">20개월 이상 복무 종료자</p>
+              </div>
+              <div className="flex items-center gap-3">
+                <button
+                  disabled={militaryCount <= 0}
+                  onClick={() => setMilitaryCount(militaryCount - 1)}
+                  className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center disabled:opacity-30"
+                >
+                  -
+                </button>
+                <span className="font-bold text-base w-4 text-center">{militaryCount}</span>
+                <button
+                  onClick={() => setMilitaryCount(militaryCount + 1)}
                   className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center"
                 >
                   +
