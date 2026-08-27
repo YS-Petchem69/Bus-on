@@ -51,10 +51,28 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({
 
   // 쿠폰 데이터
   const availableCoupons = [
-    { id: 'c1', title: '15% 할인', code: 'SAVE15' },
-    { id: 'c2', title: '5,000원 할인', code: 'SAVE5000' },
-    { id: 'c3', title: '20% 할인 (주말)', code: 'WEEKEND20' },
+    { id: 'c1', title: '15% 할인', code: 'SAVE15', type: 'percentage', value: 15 },
+    { id: 'c2', title: '5,000원 할인', code: 'SAVE5000', type: 'fixed', value: 5000 },
+    { id: 'c3', title: '20% 할인 (주말)', code: 'WEEKEND20', type: 'percentage', value: 20 },
   ];
+
+  // 할인액 계산 함수
+  const calculateDiscountAmount = (basePrice: number, couponId: string | null) => {
+    if (!couponId) return 0;
+    const coupon = availableCoupons.find(c => c.id === couponId);
+    if (!coupon) return 0;
+    
+    if (coupon.type === 'percentage') {
+      return Math.floor(basePrice * (coupon.value / 100));
+    } else {
+      return Math.min(coupon.value, basePrice);
+    }
+  };
+
+  // 최종 가격 계산
+  const basePrice = selectedSchedule ? selectedSchedule.price * adultCount : 0;
+  const discountAmount = calculateDiscountAmount(basePrice, selectedCoupon);
+  const finalPrice = basePrice - discountAmount;
 
   const handleSwapTerminals = () => {
     const temp = origin;
@@ -105,6 +123,11 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({
       ? availableCoupons.find(c => c.id === selectedCoupon)?.code 
       : undefined;
 
+    // 최종 가격 계산
+    const basePrice = selectedSchedule.price * adultCount;
+    const discount = calculateDiscountAmount(basePrice, selectedCoupon);
+    const finalBookingPrice = basePrice - discount;
+
     const newTicket: Ticket = {
       id: `TK-${Date.now().toString().slice(-6)}`,
       busNumber: `고속버스 ${selectedSchedule.busNumber}`,
@@ -121,7 +144,7 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({
       seatNumber: selectedSeat,
       seatType: `${selectedSchedule.grade === 'premium' ? '프리미엄' : '우등'} 좌석`,
       platform: selectedSchedule.platform,
-      price: selectedSchedule.price * adultCount,
+      price: finalBookingPrice,
       passengerName: '김버스',
       qrCodeValue: `BUSON-${selectedSchedule.busNumber}-${selectedSeat}`,
       status: 'booked',
@@ -695,9 +718,23 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({
               <div className="flex items-center justify-between py-2 mb-3">
                 <div>
                   <span className="text-xs text-gray-500">선택 좌석: {selectedSeat ? `${selectedSeat}번` : '미선택'}</span>
-                  <p className="font-bold text-lg text-[#0052cc]">
-                    총 {(selectedSchedule.price * adultCount).toLocaleString()}원
-                  </p>
+                  {discountAmount > 0 ? (
+                    <div className="flex flex-col gap-1 mt-1">
+                      <p className="text-xs text-gray-500 line-through">
+                        {basePrice.toLocaleString()}원
+                      </p>
+                      <p className="font-bold text-lg text-red-500">
+                        총 {finalPrice.toLocaleString()}원
+                      </p>
+                      <p className="text-xs text-red-500 font-semibold">
+                        할인: -{discountAmount.toLocaleString()}원
+                      </p>
+                    </div>
+                  ) : (
+                    <p className="font-bold text-lg text-[#0052cc] mt-1">
+                      총 {basePrice.toLocaleString()}원
+                    </p>
+                  )}
                 </div>
                 
                 {/* Coupon Button with Text */}
@@ -791,8 +828,16 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({
                   }`}
                 >
                   <div className="flex justify-between items-center">
-                    <span className="font-medium">{coupon.title}</span>
-                    <span className="text-[10px] opacity-75">{coupon.code}</span>
+                    <div className="flex flex-col gap-0.5">
+                      <span className="font-medium">{coupon.title}</span>
+                      <span className="text-[10px] opacity-75">{coupon.code}</span>
+                    </div>
+                    <span className={`text-sm font-bold ${selectedCoupon === coupon.id ? 'text-yellow-300' : 'text-red-500'}`}>
+                      {coupon.type === 'percentage' 
+                        ? `-${coupon.value}%`
+                        : `-${coupon.value.toLocaleString()}원`
+                      }
+                    </span>
                   </div>
                 </button>
               ))}
