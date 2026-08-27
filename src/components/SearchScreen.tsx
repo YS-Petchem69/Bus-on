@@ -287,7 +287,7 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({
                   className="p-3 bg-gradient-to-r from-[#f2f4f7] to-[#eceef1] hover:from-[#dae2ff] hover:to-[#eceef1] rounded-lg flex items-center justify-between transition-all"
                 >
                   <div className="flex items-center gap-3">
-                    <span className="material-symbols-outlined text-[#0052cc]">favorite</span>
+                    <span className="material-symbols-outlined text-red-500 font-bold">favorite</span>
                     <div className="text-left">
                       <p className="text-xs font-semibold text-[#191c1e]">{route.origin} → {route.destination}</p>
                       <p className="text-[10px] text-[#737685]">최근: {route.lastSearchedDate} · 검색: {route.searchCount}회</p>
@@ -725,9 +725,13 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({
                     ));
                   }
                 }}
-                className="w-full px-4 py-2 bg-[#f2f4f7] hover:bg-[#dae2ff] text-[#0052cc] font-semibold text-xs rounded-lg flex items-center justify-center gap-2 transition-all mb-2"
+                className="w-full px-4 py-2 bg-[#f2f4f7] hover:bg-[#dae2ff] transition-all mb-2 font-semibold text-xs rounded-lg flex items-center justify-center gap-2"
               >
-                <span className="material-symbols-outlined text-base">
+                <span className={`material-symbols-outlined text-base transition-all font-bold ${
+                  savedRoutes.find(r => r.origin === origin && r.destination === destination)?.isFavorite 
+                    ? 'text-red-500' 
+                    : 'text-gray-400'
+                }`}>
                   {savedRoutes.find(r => r.origin === origin && r.destination === destination)?.isFavorite ? 'favorite' : 'favorite_border'}
                 </span>
                 이 노선 저장하기

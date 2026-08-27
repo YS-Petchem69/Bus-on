@@ -685,7 +685,9 @@ export const MyPageScreen: React.FC<MyPageScreenProps> = ({ onNavigate, onSelect
                       className="p-2 hover:bg-white rounded-lg transition-colors"
                       title={route.isFavorite ? '즐겨찾기 제거' : '즐겨찾기 추가'}
                     >
-                      <span className="material-symbols-outlined text-lg text-[#0052cc]">
+                      <span className={`material-symbols-outlined text-lg transition-all font-bold ${
+                        route.isFavorite ? 'text-red-500' : 'text-gray-300'
+                      }`}>
                         {route.isFavorite ? 'favorite' : 'favorite_border'}
                       </span>
                     </button>
