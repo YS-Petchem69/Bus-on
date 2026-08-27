@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { BusType, BusSchedule, Terminal, Ticket, TabType } from '../types';
-import { TERMINALS, REGIONS, MOCK_BUS_SCHEDULES, HOTLINK_IMAGES } from '../data/mockData';
+import { TERMINALS, REGIONS, MOCK_BUS_SCHEDULES, HOTLINK_IMAGES, PROMO_EVENTS } from '../data/mockData';
 
 interface SearchScreenProps {
   onNavigate: (tab: TabType) => void;
@@ -9,6 +9,8 @@ interface SearchScreenProps {
   onOpenTicketQr: () => void;
   initialOrigin?: string;
   initialDestination?: string;
+  selectedPromoId?: string | null;
+  onPromoSelected?: (promoId: string | null) => void;
 }
 
 export const SearchScreen: React.FC<SearchScreenProps> = ({
@@ -18,6 +20,8 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({
   onOpenTicketQr,
   initialOrigin = '서울(경부)',
   initialDestination = '부산(노포)',
+  selectedPromoId = null,
+  onPromoSelected = () => {},
 }) => {
   const [busType, setBusType] = useState<BusType>('express');
   const [origin, setOrigin] = useState(initialOrigin);
@@ -38,6 +42,15 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({
   const [selectedSchedule, setSelectedSchedule] = useState<BusSchedule | null>(null);
   const [selectedSeat, setSelectedSeat] = useState<number | null>(null);
   const [showSeatModal, setShowSeatModal] = useState(false);
+  const [selectedCoupon, setSelectedCoupon] = useState<string | null>(null);
+  const [showCouponList, setShowCouponList] = useState(false);
+
+  // 쿠폰 데이터
+  const availableCoupons = [
+    { id: 'c1', title: '15% 할인', code: 'SAVE15' },
+    { id: 'c2', title: '5,000원 할인', code: 'SAVE5000' },
+    { id: 'c3', title: '20% 할인 (주말)', code: 'WEEKEND20' },
+  ];
 
   const handleSwapTerminals = () => {
     const temp = origin;
@@ -49,7 +62,7 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({
     const matchesRegion = selectedRegion === '전체' || t.region.includes(selectedRegion);
     const matchesSearch = t.name.toLowerCase().includes(searchTerm.toLowerCase());
     return matchesRegion && matchesSearch;
-  });
+  }).sort((a, b) => a.name.localeCompare(b.name, 'ko-KR'));
 
   const handleSelectTerminal = (terminalName: string) => {
     if (showTerminalModal === 'origin') {
@@ -69,11 +82,17 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({
   const handleOpenSeatPicker = (schedule: BusSchedule) => {
     setSelectedSchedule(schedule);
     setSelectedSeat(null);
+    setSelectedCoupon(null);
+    setShowCouponList(false);
     setShowSeatModal(true);
   };
 
   const handleConfirmBooking = () => {
     if (!selectedSchedule || !selectedSeat) return;
+
+    const couponCode = selectedCoupon 
+      ? availableCoupons.find(c => c.id === selectedCoupon)?.code 
+      : undefined;
 
     const newTicket: Ticket = {
       id: `TK-${Date.now().toString().slice(-6)}`,
@@ -97,6 +116,7 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({
       status: 'booked',
       speed: 0,
       remainingMinutes: 240,
+      appliedCoupon: couponCode,
     };
 
     onBookSuccess(newTicket);
@@ -106,6 +126,29 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({
 
   return (
     <div className="flex flex-col gap-5 px-5 py-4 pb-28 max-w-md mx-auto sm:max-w-xl md:max-w-2xl animate-fadeIn">
+      {/* Promo Banner */}
+      {selectedPromoId && (
+        <section>
+          {PROMO_EVENTS.map((promo) => 
+            promo.id === selectedPromoId ? (
+              <div key={promo.id} className="bg-gradient-to-r from-[#0052cc]/10 to-[#003d9b]/10 border-l-4 border-[#0052cc] rounded-xl p-4 flex items-start gap-3">
+                <div className="text-2xl">{promo.emoji}</div>
+                <div className="flex-1">
+                  <h3 className="font-display font-bold text-[#191c1e] text-sm">{promo.title}</h3>
+                  <p className="text-xs text-[#555f6c] mt-0.5">{promo.subtitle}</p>
+                </div>
+                <button
+                  onClick={() => onPromoSelected(null)}
+                  className="text-[#737685] hover:text-[#191c1e] transition-colors"
+                >
+                  <span className="material-symbols-outlined text-[20px]">close</span>
+                </button>
+              </div>
+            ) : null
+          )}
+        </section>
+      )}
+
       {/* Search Card */}
       <section className="bg-white rounded-2xl shadow-[0_4px_20px_rgba(0,0,0,0.05)] p-5 flex flex-col gap-4 border border-neutral-100 relative">
         {/* Type Toggle */}
@@ -519,7 +562,15 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({
 
       {/* Seat Picker Modal */}
       {showSeatModal && selectedSchedule && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
+        <div className="fixed inset-0 z-[9999] bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4">
+          {/* Coupon Dropdown Overlay - Prevents scrolling when dropdown is open */}
+          {showCouponList && (
+            <div
+              className="fixed inset-0 z-[9998]"
+              onClick={() => setShowCouponList(false)}
+            />
+          )}
+
           <div className="bg-white w-full max-w-md rounded-t-3xl sm:rounded-2xl p-5 max-h-[90vh] flex flex-col shadow-2xl animate-slideUp">
             <div className="flex justify-between items-center pb-3 border-b">
               <div>
@@ -533,78 +584,154 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({
               </button>
             </div>
 
-            {/* Seat Map Area */}
-            <div className="my-4 p-4 bg-[#f2f4f7] rounded-2xl flex flex-col items-center">
-              <div className="w-full flex justify-between px-6 mb-3 text-xs text-gray-500 font-semibold border-b border-gray-300 pb-2">
-                <span>운전석 🚍</span>
-                <span>출입문 🚪</span>
-              </div>
-
-              {/* Grid representation of 1-2 seating format */}
-              <div className="grid grid-cols-4 gap-2.5 w-full max-w-[280px]">
-                {Array.from({ length: 21 }, (_, i) => i + 1).map((seatNum) => {
-                  const isOccupied = [2, 5, 8, 12, 16].includes(seatNum);
-                  const isSelected = selectedSeat === seatNum;
-                  const isAisle = (seatNum - 1) % 3 === 1;
-
-                  return (
-                    <React.Fragment key={seatNum}>
-                      <button
-                        disabled={isOccupied}
-                        onClick={() => setSelectedSeat(seatNum)}
-                        className={`h-11 rounded-lg text-xs font-bold transition-all flex flex-col items-center justify-center ${
-                          isOccupied
-                            ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
-                            : isSelected
-                            ? 'bg-[#0052cc] text-white shadow-md scale-105 ring-2 ring-blue-300'
-                            : 'bg-white text-[#191c1e] hover:bg-blue-50 border border-gray-200'
-                        }`}
-                      >
-                        <span>{seatNum}</span>
-                        <span className="text-[9px] opacity-75">
-                          {isOccupied ? '마감' : isSelected ? '선택' : '예약'}
-                        </span>
-                      </button>
-                      {/* Insert empty gap for aisle */}
-                      {isAisle && <div className="w-2"></div>}
-                    </React.Fragment>
-                  );
-                })}
-              </div>
-
-              {/* Legend */}
-              <div className="flex gap-4 mt-4 text-[11px] text-gray-600">
-                <div className="flex items-center gap-1">
-                  <div className="w-3.5 h-3.5 bg-white border rounded"></div>
-                  <span>선택가능</span>
+            {/* Scrollable Content Area */}
+            <div className="flex-1 overflow-y-auto my-4">
+              {/* Seat Map Area */}
+              <div className="p-4 bg-[#f2f4f7] rounded-2xl flex flex-col items-center">
+                <div className="w-full flex justify-between px-6 mb-3 text-xs text-gray-500 font-semibold border-b border-gray-300 pb-2">
+                  <span>운전석 🚍</span>
+                  <span>출입문 🚪</span>
                 </div>
-                <div className="flex items-center gap-1">
-                  <div className="w-3.5 h-3.5 bg-[#0052cc] rounded"></div>
-                  <span>선택좌석</span>
+
+                {/* Grid representation of 1-2 seating format */}
+                <div className="grid grid-cols-4 gap-2.5 w-full max-w-[280px]">
+                  {Array.from({ length: 21 }, (_, i) => i + 1).map((seatNum) => {
+                    const isOccupied = [2, 5, 8, 12, 16].includes(seatNum);
+                    const isSelected = selectedSeat === seatNum;
+                    const isAisle = (seatNum - 1) % 3 === 1;
+
+                    return (
+                      <React.Fragment key={seatNum}>
+                        <button
+                          disabled={isOccupied}
+                          onClick={() => setSelectedSeat(seatNum)}
+                          className={`h-11 rounded-lg text-xs font-bold transition-all flex flex-col items-center justify-center ${
+                            isOccupied
+                              ? 'bg-gray-300 text-gray-500 cursor-not-allowed'
+                              : isSelected
+                              ? 'bg-[#0052cc] text-white shadow-md scale-105 ring-2 ring-blue-300'
+                              : 'bg-white text-[#191c1e] hover:bg-blue-50 border border-gray-200'
+                          }`}
+                        >
+                          <span>{seatNum}</span>
+                          <span className="text-[9px] opacity-75">
+                            {isOccupied ? '마감' : isSelected ? '선택' : '예약'}
+                          </span>
+                        </button>
+                        {/* Insert empty gap for aisle */}
+                        {isAisle && <div className="w-2"></div>}
+                      </React.Fragment>
+                    );
+                  })}
                 </div>
-                <div className="flex items-center gap-1">
-                  <div className="w-3.5 h-3.5 bg-gray-300 rounded"></div>
-                  <span>예약완료</span>
+
+                {/* Legend */}
+                <div className="flex gap-4 mt-4 text-[11px] text-gray-600">
+                  <div className="flex items-center gap-1">
+                    <div className="w-3.5 h-3.5 bg-white border rounded"></div>
+                    <span>선택가능</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <div className="w-3.5 h-3.5 bg-[#0052cc] rounded"></div>
+                    <span>선택좌석</span>
+                  </div>
+                  <div className="flex items-center gap-1">
+                    <div className="w-3.5 h-3.5 bg-gray-300 rounded"></div>
+                    <span>예약완료</span>
+                  </div>
                 </div>
               </div>
             </div>
 
-            {/* Price calculation and confirmation */}
-            <div className="flex items-center justify-between py-2">
-              <div>
-                <span className="text-xs text-gray-500">선택 좌석: {selectedSeat ? `${selectedSeat}번` : '미선택'}</span>
-                <p className="font-bold text-lg text-[#0052cc]">
-                  총 {(selectedSchedule.price * adultCount).toLocaleString()}원
-                </p>
+            {/* Fixed Bottom Section */}
+            <div className="border-t pt-3">
+              <div className="flex items-center justify-between py-2 mb-3">
+                <div>
+                  <span className="text-xs text-gray-500">선택 좌석: {selectedSeat ? `${selectedSeat}번` : '미선택'}</span>
+                  <p className="font-bold text-lg text-[#0052cc]">
+                    총 {(selectedSchedule.price * adultCount).toLocaleString()}원
+                  </p>
+                </div>
+                
+                {/* Coupon Button with Text */}
+                <button
+                  onClick={() => setShowCouponList(true)}
+                  className="flex flex-col items-center gap-1 p-2 bg-[#f2f4f7] hover:bg-[#dae2ff] rounded-lg transition-colors"
+                  title="할인 쿠폰 선택"
+                >
+                  <span className="material-symbols-outlined text-base text-[#0052cc]">
+                    {selectedCoupon ? 'check_circle' : 'card_giftcard'}
+                  </span>
+                  <span className="text-[10px] font-bold text-[#0052cc]">할인쿠폰</span>
+                </button>
               </div>
               <button
                 disabled={!selectedSeat}
                 onClick={handleConfirmBooking}
-                className="px-6 py-3.5 bg-[#0052cc] disabled:bg-gray-300 text-white font-bold text-sm rounded-xl shadow-md transition-all active:scale-95"
+                className="w-full px-6 py-3.5 bg-[#0052cc] disabled:bg-gray-300 text-white font-bold text-sm rounded-xl shadow-md transition-all active:scale-95"
               >
                 예매하기
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Coupon Selection Modal */}
+      {showCouponList && (
+        <div className="fixed inset-0 z-[10000] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl p-6 max-w-sm w-full shadow-2xl animate-slideUp">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-display font-bold text-lg text-[#191c1e]">할인 쿠폰 선택</h2>
+              <button
+                onClick={() => setShowCouponList(false)}
+                className="p-1 hover:bg-gray-100 rounded-full text-gray-400"
+              >
+                <span className="material-symbols-outlined">close</span>
+              </button>
+            </div>
+
+            <div className="space-y-2 max-h-[60vh] overflow-y-auto">
+              <button
+                onClick={() => {
+                  setSelectedCoupon(null);
+                  setShowCouponList(false);
+                }}
+                className={`w-full p-3 rounded-lg text-xs font-medium transition-all text-left ${
+                  selectedCoupon === null
+                    ? 'bg-[#0052cc] text-white'
+                    : 'bg-[#f2f4f7] text-gray-700 hover:bg-[#dae2ff]'
+                }`}
+              >
+                쿠폰 사용 안 함
+              </button>
+              {availableCoupons.map((coupon) => (
+                <button
+                  key={coupon.id}
+                  onClick={() => {
+                    setSelectedCoupon(coupon.id);
+                    setShowCouponList(false);
+                  }}
+                  className={`w-full p-3 rounded-lg text-xs font-medium transition-all text-left ${
+                    selectedCoupon === coupon.id
+                      ? 'bg-[#0052cc] text-white'
+                      : 'bg-[#f2f4f7] text-gray-700 hover:bg-[#dae2ff]'
+                  }`}
+                >
+                  <div className="flex justify-between items-center">
+                    <span className="font-medium">{coupon.title}</span>
+                    <span className="text-[10px] opacity-75">{coupon.code}</span>
+                  </div>
+                </button>
+              ))}
+            </div>
+
+            <button
+              onClick={() => setShowCouponList(false)}
+              className="w-full mt-4 py-3 bg-[#003d9b] text-white font-semibold rounded-xl hover:bg-[#002d7f] transition-colors"
+            >
+              확인
+            </button>
           </div>
         </div>
       )}

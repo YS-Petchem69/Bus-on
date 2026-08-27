@@ -1,12 +1,13 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { TabType, Ticket } from '../types';
-import { HOTLINK_IMAGES } from '../data/mockData';
+import { HOTLINK_IMAGES, PROMO_EVENTS } from '../data/mockData';
 
 interface HomeScreenProps {
   onNavigate: (tab: TabType) => void;
   activeTicket: Ticket;
   onOpenTicketDetail: (ticket: Ticket) => void;
   onSelectQuickRoute: (origin: string, destination: string) => void;
+  onPromoBooking: (promoId: string) => void;
 }
 
 export const HomeScreen: React.FC<HomeScreenProps> = ({
@@ -14,7 +15,22 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
   activeTicket,
   onOpenTicketDetail,
   onSelectQuickRoute,
+  onPromoBooking,
 }) => {
+  const [currentPromoIndex, setCurrentPromoIndex] = useState(0);
+  const [showPromoModal, setShowPromoModal] = useState(false);
+
+  useEffect(() => {
+    // 모달이 열려 있으면 자동 회전 중지
+    if (showPromoModal) return;
+
+    const interval = setInterval(() => {
+      setCurrentPromoIndex((prevIndex) => (prevIndex + 1) % PROMO_EVENTS.length);
+    }, 4000); // 4초마다 변경
+
+    return () => clearInterval(interval);
+  }, [showPromoModal]);
+
   return (
     <div className="flex flex-col gap-6 px-5 py-4 pb-28 max-w-md mx-auto sm:max-w-xl md:max-w-2xl animate-fadeIn">
       {/* Greeting Section */}
@@ -172,29 +188,106 @@ export const HomeScreen: React.FC<HomeScreenProps> = ({
         </div>
       </section>
 
-      {/* Promotional Banner */}
+      {/* Promotional Banner with Auto-Rotation */}
       <section>
         <div
-          className="w-full h-24 rounded-2xl overflow-hidden relative shadow-sm cursor-pointer group"
-          onClick={() => onNavigate('search')}
+          className="w-full h-24 rounded-2xl overflow-hidden relative shadow-sm cursor-pointer group transition-opacity duration-300"
+          onClick={() => setShowPromoModal(true)}
         >
           <div
             className="absolute inset-0 bg-cover bg-center transition-transform duration-500 group-hover:scale-105"
-            style={{ backgroundImage: `url('${HOTLINK_IMAGES.bannerPromo}')` }}
+            style={{ backgroundImage: `url('${PROMO_EVENTS[currentPromoIndex].backgroundImage}')` }}
           ></div>
-          <div className="absolute inset-0 bg-gradient-to-r from-[#001848]/90 via-[#003d9b]/70 to-transparent flex items-center px-5">
-            <div className="flex flex-col text-white">
-              <span className="font-display text-lg font-bold">가을 단풍 버스 여행 🍂</span>
+          <div className={`absolute inset-0 bg-gradient-to-r ${PROMO_EVENTS[currentPromoIndex].gradientFrom} ${PROMO_EVENTS[currentPromoIndex].gradientVia} ${PROMO_EVENTS[currentPromoIndex].gradientTo} flex items-center px-5 transition-all duration-500`}>
+            <div className="flex flex-col text-white flex-1">
+              <span className="font-display text-lg font-bold">{PROMO_EVENTS[currentPromoIndex].title}</span>
               <span className="text-xs text-blue-100 mt-0.5">
-                주요 관광지 노선 최대 20% 특별 할인 혜택
+                {PROMO_EVENTS[currentPromoIndex].subtitle}
               </span>
             </div>
-            <span className="material-symbols-outlined text-white/80 ml-auto group-hover:translate-x-1 transition-transform">
+            <span className="material-symbols-outlined text-white/80 group-hover:translate-x-1 transition-transform">
               chevron_right
             </span>
           </div>
+
+          {/* Pagination Indicators */}
+          <div className="absolute bottom-2.5 left-1/2 transform -translate-x-1/2 flex gap-1.5 z-10">
+            {PROMO_EVENTS.map((_, index) => (
+              <button
+                key={index}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setCurrentPromoIndex(index);
+                }}
+                className={`transition-all duration-300 rounded-full ${
+                  index === currentPromoIndex
+                    ? 'bg-white w-6 h-1.5'
+                    : 'bg-white/50 w-1.5 h-1.5 hover:bg-white/70'
+                }`}
+                aria-label={`Go to promotion ${index + 1}`}
+              />
+            ))}
+          </div>
         </div>
       </section>
+
+      {/* Promo Detail Modal */}
+      {showPromoModal && (
+        <div className="fixed inset-0 bg-black/40 z-40 flex items-end sm:items-center justify-center" onClick={() => setShowPromoModal(false)}>
+          <div className="bg-white rounded-2xl w-full max-w-md max-h-[80vh] overflow-y-auto sm:rounded-3xl shadow-2xl animate-fadeIn" onClick={(e) => e.stopPropagation()}>
+            {/* Header */}
+            <div className="sticky top-0 bg-white border-b border-gray-100 p-5 flex items-center justify-between">
+              <h2 className="font-display text-xl font-bold text-[#191c1e]">
+                {PROMO_EVENTS[currentPromoIndex].title}
+              </h2>
+              <button
+                onClick={() => setShowPromoModal(false)}
+                className="w-8 h-8 rounded-full hover:bg-gray-100 flex items-center justify-center transition-colors"
+              >
+                <span className="material-symbols-outlined text-[24px] text-[#555f6c]">close</span>
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-5 space-y-5">
+              {/* Event Description */}
+              <div>
+                <p className="text-sm text-[#555f6c] leading-relaxed">
+                  {PROMO_EVENTS[currentPromoIndex].description}
+                </p>
+              </div>
+
+              {/* Event Details */}
+              <div className="space-y-3">
+                <h3 className="font-display font-bold text-[#191c1e]">이벤트 상세 내용</h3>
+                <ul className="space-y-2.5">
+                  {PROMO_EVENTS[currentPromoIndex].details.map((detail, idx) => (
+                    <li key={idx} className="flex gap-3 items-start">
+                      <div className="w-5 h-5 rounded-full bg-[#0052cc] flex items-center justify-center shrink-0 mt-0.5">
+                        <span className="text-white text-xs font-bold">{idx + 1}</span>
+                      </div>
+                      <span className="text-sm text-[#3e4853]">{detail}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+
+              {/* Action Button */}
+              <button
+                onClick={() => {
+                  const promoId = PROMO_EVENTS[currentPromoIndex].id;
+                  setShowPromoModal(false);
+                  // App.tsx의 onPromoBooking에서 탭 변경 처리
+                  onPromoBooking(promoId);
+                }}
+                className="w-full bg-[#0052cc] hover:bg-[#003d9b] text-white font-bold py-3 rounded-2xl transition-all active:scale-95 mt-6"
+              >
+                이제 예매하기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

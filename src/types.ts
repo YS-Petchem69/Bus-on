@@ -49,6 +49,7 @@ export interface Ticket {
   status: 'booked' | 'boarding' | 'on-trip' | 'completed' | 'cancelled';
   speed: number;
   remainingMinutes: number;
+  appliedCoupon?: string;
 }
 
 export interface RestArea {
@@ -83,6 +84,15 @@ export interface TaxiOption {
   estimatedFare: number;
   distanceKm: number;
   durationMinutes: number;
+}
+
+export interface TaxiDriver {
+  name: string;
+  rating: number;
+  carBrand: string;
+  carModel: string;
+  plateNumber: string;
+  platePrefix: string;
 }
 
 export interface SubwayRoute {

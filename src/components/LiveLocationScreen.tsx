@@ -1,6 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { TabType, Ticket } from '../types';
 import { HOTLINK_IMAGES, INITIAL_LIVE_DATA } from '../data/mockData';
+import { MapContainer, TileLayer, Polyline, Marker, Popup } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 
 interface LiveLocationScreenProps {
   onNavigate: (tab: TabType) => void;
@@ -14,11 +17,80 @@ export const LiveLocationScreen: React.FC<LiveLocationScreenProps> = ({
   onOpenTransfer,
 }) => {
   const [speed, setSpeed] = useState(95);
-  const [progress, setProgress] = useState(58);
+  const [progress, setProgress] = useState(62); // 08:00~11:00(3시간) 중 09:30(1.5시간 경과) = 50%
   const [isSimulating, setIsSimulating] = useState(true);
   const [showShareToast, setShowShareToast] = useState(false);
   const [showDriverContactModal, setShowDriverContactModal] = useState(false);
   const [showRestAreaModal, setShowRestAreaModal] = useState(false);
+  
+  // 여수종합버스터미널 → 부산서부버스터미널 상세 경로
+  // (여천동 → 율촌면 → 해룡면 → 순천 → 남해고속도로 → 남해고속도로 2지선)
+  const routeCoordinates = [
+    [34.758132, 127.716851], // 여수종합버스터미널 (출발지)
+    [34.763500, 127.712000], // 여수시 오림동
+    [34.768850, 127.697200], // 여천시외버스정류장 (무선로)
+    [34.775000, 127.688000], // 17번 국도 (엑스포대로)
+    [34.795000, 127.695000], // 율촌면
+    [34.820000, 127.730000], // 해룡면 진입
+    [34.835000, 127.750000], // 해룡면
+    [34.865000, 127.775000], // 순천 신대지구시외버스정류소
+    [34.920000, 127.785000], // 동순천IC (남해고속도로 진입)
+    [34.980000, 127.850000], // 남해고속도로 1차선 진행
+    [35.050000, 127.960000], // 광양 구간
+    [35.110000, 128.080000], // 섬진강휴게소 (현재위치)
+    [35.150000, 128.220000], // 하동 구간
+    [35.210000, 128.411000], // 사천 구간
+    [35.230000, 128.550000], // 진주 구간
+    [35.250000, 128.670000], // 창원 구간
+    [35.270000, 128.800000], // 냉정분기점 (남해고속도로 2지선 분기)
+    [35.240000, 128.880000], // 남해고속도로 2지선
+    [35.200000, 128.920000], // 남해고속도로 2지선 진행
+    [35.175000, 128.945000], // 서부산 요금소
+    [35.170000, 128.975000], // 사상IC
+    [35.163321, 128.982323], // 부산서부버스터미널 (도착지)
+  ];
+
+  // 진행된 경로 (여수종합 ~ 사천 구간, 약 62% 진행)
+  const completedRoute = [
+    [34.758132, 127.716851],
+    [34.763500, 127.712000],
+    [34.768850, 127.697200],
+    [34.775000, 127.688000],
+    [34.795000, 127.695000],
+    [34.820000, 127.730000],
+    [34.835000, 127.750000],
+    [34.865000, 127.775000],
+    [34.920000, 127.785000],
+    [34.980000, 127.850000],
+    [35.050000, 127.960000],
+    [35.110000, 128.080000],
+    [35.150000, 128.220000],
+    [35.210000, 128.411000],
+  ];
+
+  // 남은 경로 (사천 ~ 부산서부버스터미널)
+  const remainingRoute = [
+    [35.210000, 128.411000], // 사천 (현재 위치)
+    [35.230000, 128.550000], // 진주
+    [35.250000, 128.670000], // 창원
+    [35.270000, 128.800000], // 냉정분기점
+    [35.240000, 128.880000], // 남해고속도로 2지선
+    [35.200000, 128.920000], // 남해고속도로 2지선 진행
+    [35.175000, 128.945000], // 서부산 요금소
+    [35.170000, 128.975000], // 사상IC
+    [35.163321, 128.982323], // 부산서부버스터미널 (도착지)
+  ];
+
+  // 여수종합버스터미널 (좌수영로 268)
+  const yeosuTerminal = [34.758132, 127.716851];
+  // 여천시외버스정류장 (무선로)
+  const yeocheomBusStation = [34.768850, 127.697200];
+  // 섬진강휴게소 (중간 정류소)
+  const semjinRestArea = [35.110000, 128.080000];
+  // 부산서부버스터미널 (사상로 201)
+  const busanWestTerminal = [35.163321, 128.982323];
+  // 현재 위치 (사천 구간, 약 62% 진행)
+  const currentLocation = [35.210000, 128.411000];
 
   // Live speed oscillation for realism
   useEffect(() => {
@@ -56,18 +128,14 @@ export const LiveLocationScreen: React.FC<LiveLocationScreenProps> = ({
               </span>
             </div>
             <span className="font-display text-[17px] text-[#003d9b] font-extrabold tracking-tight">
-              남은 시간: 2시간 15분
+              남은 시간: 1시간 12분
             </span>
           </div>
 
           <div className="flex items-center gap-2.5 pt-0.5">
-            <div className="font-display text-xl font-bold text-[#191c1e]">
-              {activeTicket.origin === '서울' ? '서울경부' : activeTicket.origin}
-            </div>
+            <div className="font-display text-xl font-bold text-[#191c1e]">여수(종합)</div>
             <span className="material-symbols-outlined text-[#737685] text-lg">arrow_forward</span>
-            <div className="font-display text-xl font-bold text-[#191c1e]">
-              {activeTicket.destination === '부산' ? '부산노포' : activeTicket.destination}
-            </div>
+            <div className="font-display text-xl font-bold text-[#191c1e]">부산(서부)</div>
             <span className="text-xs text-[#555f6c] ml-auto font-medium">
               좌석 {activeTicket.seatNumber}번
             </span>
@@ -75,98 +143,105 @@ export const LiveLocationScreen: React.FC<LiveLocationScreenProps> = ({
         </div>
       </div>
 
-      {/* 2. Simulated Map Canvas Area */}
-      <div
-        className="absolute inset-0 z-0 bg-[#f2f4f7] bg-cover bg-center"
-        style={{ backgroundImage: `url('${HOTLINK_IMAGES.mapBg}')` }}
-      >
-        {/* Overlay to soften map styling */}
-        <div className="absolute inset-0 bg-[#f7f9fc]/30 backdrop-blur-[0.5px]"></div>
-
-        {/* Highway SVG Route Polyline */}
-        <svg
-          className="absolute inset-0 w-full h-full pointer-events-none"
-          preserveAspectRatio="none"
-          viewBox="0 0 400 800"
+      {/* 2. Real Map with Leaflet */}
+      <div className="absolute inset-0 z-0 overflow-hidden">
+        <MapContainer
+          center={[35.0, 128.4]}
+          zoom={8}
+          style={{ width: '100%', height: '100%' }}
+          className="rounded-none"
         >
-          {/* Background Remaining Planned Path (Dashed) */}
-          <path
-            d="M 100 150 C 145 280, 240 380, 190 670"
-            fill="none"
-            opacity="0.35"
-            stroke="#003d9b"
-            strokeDasharray="8 8"
-            strokeLinecap="round"
-            strokeWidth="7"
+          <TileLayer
+            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
-          {/* Active Travelled Path (Solid High Contrast Blue) */}
-          <path
-            d="M 100 150 C 135 270, 175 360, 172 490"
-            fill="none"
-            stroke="#003d9b"
-            strokeLinecap="round"
-            strokeWidth="7"
+
+          {/* 진행된 경로 (진한 파란색 실선) */}
+          <Polyline
+            positions={completedRoute}
+            color="#0052cc"
+            weight={5}
+            opacity={1}
+            dashArray="0"
           />
-        </svg>
 
-        {/* Map Markers */}
+          {/* 남은 경로 (투명한 파란색 실선) */}
+          <Polyline
+            positions={remainingRoute}
+            color="#0052cc"
+            weight={5}
+            opacity={0.5}
+            dashArray="0"
+          />
 
-        {/* Start Point Marker: Seoul */}
-        <div className="absolute top-[20%] left-[25%] -translate-x-1/2 -translate-y-1/2 flex flex-col items-center z-10">
-          <div className="w-4 h-4 rounded-full bg-[#737685] border-2 border-white shadow-md"></div>
-          <span className="text-[12px] font-bold text-[#191c1e] mt-1 bg-white/90 shadow-xs px-2 py-0.5 rounded-md border border-gray-100">
-            서울
-          </span>
-        </div>
+          {/* 여수종합버스터미널 마커 */}
+          <Marker
+            position={yeosuTerminal}
+            icon={L.icon({
+              iconUrl: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PGNpcmNsZSBjeD0iMTIiIGN5PSIxMiIgcj0iOCIgZmlsbD0iIzE2YTM0YSIvPjwvc3ZnPg==',
+              iconSize: [24, 24],
+              iconAnchor: [12, 12],
+            })}
+          >
+            <Popup>여수종합버스터미널 (출발지) - 08:00</Popup>
+          </Marker>
 
-        {/* Current Live Bus Location Marker (with pulsating radar) */}
-        <div
-          className="absolute top-[58%] left-[44%] -translate-x-1/2 -translate-y-1/2 flex flex-col items-center z-20 cursor-pointer"
-          onClick={() => setIsSimulating(!isSimulating)}
-          title="클릭하여 시뮬레이션 토글"
-        >
-          <div className="relative animate-vibrate-bus">
-            {/* Animated Radar Pulse Circle */}
-            <div className="absolute inset-0 bg-[#0052cc]/35 rounded-full w-14 h-14 -left-3.5 -top-3.5 animate-pulse-radar pointer-events-none"></div>
+          {/* 여천시외버스정류장 마커 */}
+          <Marker
+            position={yeocheomBusStation}
+            icon={L.icon({
+              iconUrl: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PGNpcmNsZSBjeD0iMTIiIGN5PSIxMiIgcj0iOCIgZmlsbD0iIzA2YjZkNCIvPjwvc3ZnPg==',
+              iconSize: [20, 20],
+              iconAnchor: [10, 10],
+            })}
+          >
+            <Popup>여천시외버스정류장 (롯데마트 앞, 무선로) - 08:15</Popup>
+          </Marker>
 
-            {/* Bus Circular Badge */}
-            <div className="w-7 h-7 rounded-full bg-[#003d9b] border-2 border-white shadow-lg flex items-center justify-center relative z-10">
-              <span
-                className="material-symbols-outlined text-white text-[15px]"
-                style={{ fontVariationSettings: "'FILL' 1" }}
-              >
-                directions_bus
-              </span>
-            </div>
-          </div>
+          {/* 섬진강휴게소 마커 */}
+          <Marker
+            position={semjinRestArea}
+            icon={L.icon({
+              iconUrl: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PGNpcmNsZSBjeD0iMTIiIGN5PSIxMiIgcj0iOCIgZmlsbD0iI2Y1OWUwYiIvPjwvc3ZnPg==',
+              iconSize: [20, 20],
+              iconAnchor: [10, 10],
+            })}
+          >
+            <Popup>섬진강휴게소 (광양시 진월면) - 통과함 09:30</Popup>
+          </Marker>
 
-          {/* Floating Speed Chip */}
-          <div className="mt-1.5 bg-[#001848] text-white text-[10px] font-bold px-2 py-0.5 rounded-full shadow-md flex items-center gap-1 border border-white/30 whitespace-nowrap">
-            <span>{speed} km/h</span>
-          </div>
-        </div>
+          {/* 현재 위치 마커 (버스) - 사천 구간 */}
+          <Marker
+            position={currentLocation}
+            icon={L.icon({
+              iconUrl: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PGNpcmNsZSBjeD0iMTIiIGN5PSIxMiIgcj0iMTAiIGZpbGw9IiMwMDUyY2MiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS13aWR0aD0iMiIvPjx0ZXh0IHg9IjEyIiB5PSIxNiIgdGV4dC1hbmNob3I9Im1pZGRsZSIgZmlsbD0id2hpdGUiIGZvbnQtc2l6ZT0iMTQiIGZvbnQtd2VpZ2h0PSJib2xkIj7iuqzmuLg8L3RleHQ+PC9zdmc+',
+              iconSize: [28, 28],
+              iconAnchor: [14, 14],
+            })}
+          >
+            <Popup>
+              <div className="text-xs">
+                <div className="font-bold">현재 위치: 사천 구간</div>
+                <div>남해고속도로 진행 중</div>
+                <div>시간: 10:00</div>
+                <div>속도: {speed} km/h</div>
+                <div className="text-green-600 font-semibold">도착까지 약 1시간</div>
+              </div>
+            </Popup>
+          </Marker>
 
-        {/* Next Rest Area Marker (선산휴게소) */}
-        <div
-          onClick={() => setShowRestAreaModal(true)}
-          className="absolute top-[73%] left-[50%] -translate-x-1/2 -translate-y-1/2 flex flex-col items-center z-10 cursor-pointer group"
-        >
-          <div className="w-7 h-7 rounded-full bg-white border border-[#c3c6d6] shadow-md flex items-center justify-center text-[#003d9b] group-hover:scale-110 group-hover:bg-[#dae2ff] transition-all">
-            <span className="material-symbols-outlined text-[15px]">local_cafe</span>
-          </div>
-          <span className="text-[11px] font-bold text-[#191c1e] mt-1 bg-white/95 px-2 py-0.5 rounded-md shadow-xs border border-gray-100 flex items-center gap-1">
-            <span>선산휴게소</span>
-            <span className="w-1.5 h-1.5 bg-orange-500 rounded-full"></span>
-          </span>
-        </div>
-
-        {/* Destination Marker: Busan */}
-        <div className="absolute bottom-[23%] left-[50%] -translate-x-1/2 -translate-y-1/2 flex flex-col items-center z-10">
-          <div className="w-5 h-5 rounded-full bg-[#ba1a1a] border-2 border-white shadow-md"></div>
-          <span className="text-[12px] font-bold text-[#191c1e] mt-1 bg-white/90 shadow-xs px-2 py-0.5 rounded-md border border-gray-100">
-            부산
-          </span>
-        </div>
+          {/* 부산서부버스터미널 마커 */}
+          <Marker
+            position={busanWestTerminal}
+            icon={L.icon({
+              iconUrl: 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCI+PGNpcmNsZSBjeD0iMTIiIGN5PSIxMiIgcj0iOCIgZmlsbD0iI2RjMjYyNiIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLXdpZHRoPSIyIi8+PC9zdmc+',
+              iconSize: [24, 24],
+              iconAnchor: [12, 12],
+            })}
+          >
+            <Popup>부산서부버스터미널 (사상로 201) - 예정 11:00</Popup>
+          </Marker>
+        </MapContainer>
       </div>
 
       {/* 3. Floating Action Buttons (FAB Column) */}
@@ -218,7 +293,7 @@ export const LiveLocationScreen: React.FC<LiveLocationScreenProps> = ({
           <div className="flex justify-between items-center mb-3">
             <div className="flex items-center gap-2">
               <span className="font-display font-bold text-base text-[#191c1e]">운행 정보</span>
-              <span className="text-[11px] text-[#737685]">경부고속도로 하행</span>
+              <span className="text-[11px] text-[#737685]">국도 17번 · 고속도로 주행</span>
             </div>
             <div className="text-[12px] font-bold text-[#001848] bg-[#d9e3f2] px-2.5 py-1 rounded-full flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-[#0052cc] animate-ping"></span>
@@ -233,41 +308,38 @@ export const LiveLocationScreen: React.FC<LiveLocationScreenProps> = ({
 
             {/* Progress Solid Line */}
             <div
-              className="absolute h-[4px] bg-[#003d9b] left-6 top-[6px] z-0 rounded-full transition-all duration-500"
+              className="absolute h-[4px] bg-gradient-to-r from-[#0052cc] to-[#003d9b] left-6 top-[6px] z-0 rounded-full transition-all duration-500"
               style={{ width: `${progress}%` }}
             ></div>
 
-            {/* Stop 1: Departure */}
+            {/* Stop 1: Departure - 여수종합버스터미널 */}
             <div className="flex flex-col items-center relative z-10 w-1/4">
-              <div className="w-3.5 h-3.5 rounded-full bg-[#003d9b] border-2 border-white shadow-xs mb-1"></div>
-              <span className="text-[11px] text-[#555f6c]">출발</span>
-              <span className="text-[11px] text-[#191c1e] font-bold">14:00</span>
+              <div className="w-4 h-4 rounded-full bg-[#16a34a] border-2 border-white shadow-xs mb-1"></div>
+              <span className="text-[10px] text-[#555f6c]">출발</span>
+              <span className="text-[10px] text-[#191c1e] font-bold">08:00</span>
             </div>
 
-            {/* Stop 2: Rest Area */}
-            <div
-              className="flex flex-col items-center relative z-10 w-1/4 cursor-pointer"
-              onClick={() => setShowRestAreaModal(true)}
-            >
-              <div className="w-3.5 h-3.5 rounded-full bg-[#003d9b] border-2 border-white shadow-xs mb-1"></div>
-              <span className="text-[11px] text-[#555f6c] underline decoration-dotted">휴게소</span>
-              <span className="text-[11px] text-[#191c1e] font-bold">15:30</span>
+            {/* Stop 2: 여천시외버스정류장 */}
+            <div className="flex flex-col items-center relative z-10 w-1/4">
+              <div className="w-4 h-4 rounded-full bg-[#06b6d4] border-2 border-white shadow-xs mb-1"></div>
+              <span className="text-[10px] text-[#555f6c]">정류장</span>
+              <span className="text-[10px] text-[#191c1e] font-bold">08:15</span>
             </div>
 
-            {/* Stop 3: Current Live Position */}
+            {/* Stop 3: Current Live Position - 섬진강휴게소 */}
             <div className="flex flex-col items-center relative z-10 w-1/4">
-              <div className="w-5 h-5 rounded-full bg-white border-2 border-[#003d9b] flex items-center justify-center mb-0.5 shadow-sm">
-                <div className="w-2 h-2 rounded-full bg-[#003d9b] animate-ping"></div>
+              <div className="w-5 h-5 rounded-full bg-white border-2 border-[#0052cc] flex items-center justify-center mb-0.5 shadow-sm">
+                <div className="w-2 h-2 rounded-full bg-[#0052cc] animate-pulse"></div>
               </div>
-              <span className="text-[11px] text-[#003d9b] font-extrabold">현재</span>
-              <span className="text-[10px] text-[#0052cc] font-medium">영동JC</span>
+              <span className="text-[10px] text-[#0052cc] font-extrabold">현재</span>
+              <span className="text-[9px] text-[#0052cc] font-medium">09:30</span>
             </div>
 
-            {/* Stop 4: Destination Expected Arrival */}
+            {/* Stop 4: Destination - 부산서부버스터미널 */}
             <div className="flex flex-col items-center relative z-10 w-1/4">
-              <div className="w-3.5 h-3.5 rounded-full bg-[#e0e3e6] border-2 border-[#737685] mb-1"></div>
-              <span className="text-[11px] text-[#555f6c]">도착예정</span>
-              <span className="text-[11px] text-[#191c1e] font-bold">18:15</span>
+              <div className="w-4 h-4 rounded-full bg-[#dc2626] border-2 border-white mb-1 animate-pulse"></div>
+              <span className="text-[10px] text-[#555f6c]">도착예정</span>
+              <span className="text-[10px] text-[#191c1e] font-bold">11:00</span>
             </div>
           </div>
         </div>
@@ -279,23 +351,24 @@ export const LiveLocationScreen: React.FC<LiveLocationScreenProps> = ({
           <div className="bg-white w-full max-w-md rounded-t-3xl sm:rounded-2xl p-5 shadow-2xl flex flex-col gap-4 animate-slideUp">
             <div className="flex justify-between items-center border-b pb-3">
               <div className="flex items-center gap-2">
-                <span className="material-symbols-outlined text-[#0052cc]">local_cafe</span>
-                <h3 className="font-display font-bold text-lg text-[#191c1e]">
-                  선산휴게소 (마산방향)
-                </h3>
+                <span className="material-symbols-outlined text-[#f59e0b]">local_cafe</span>
+                <div>
+                  <h3 className="font-display font-bold text-lg text-[#191c1e]">섬진강휴게소</h3>
+                  <p className="text-xs text-[#737685]">남해고속도로 (여수→부산 방향)</p>
+                </div>
               </div>
               <button onClick={() => setShowRestAreaModal(false)} className="text-gray-400">
                 <span className="material-symbols-outlined">close</span>
               </button>
             </div>
 
-            <div className="flex items-center justify-between bg-[#f2f4f7] p-3.5 rounded-xl">
+            <div className="flex items-center justify-between bg-gradient-to-r from-[#fef3c7] to-[#fed7aa] p-3.5 rounded-xl">
               <div>
-                <span className="text-xs text-[#737685]">예상 도착 시간</span>
-                <p className="text-base font-bold text-[#003d9b]">15:30 (약 25분 후)</p>
+                <span className="text-xs text-[#92400e]">예상 도착</span>
+                <p className="text-base font-bold text-[#b45309]">약 20분 후</p>
               </div>
               <div className="text-right">
-                <span className="text-xs text-[#737685]">정차 예정</span>
+                <span className="text-xs text-[#92400e]">정차 예정</span>
                 <p className="text-base font-bold text-[#191c1e]">15분간 정차</p>
               </div>
             </div>
@@ -303,10 +376,10 @@ export const LiveLocationScreen: React.FC<LiveLocationScreenProps> = ({
             <div>
               <span className="text-xs font-bold text-[#191c1e] mb-2 block">편의 시설 안내</span>
               <div className="flex flex-wrap gap-2">
-                {INITIAL_LIVE_DATA.nextRestArea.facilities.map((fac, i) => (
+                {['화장실', '편의점', '카페', '식당', '충전소', '주유소'].map((fac, i) => (
                   <span
                     key={i}
-                    className="bg-[#dae2ff]/50 text-[#001848] text-xs font-semibold px-2.5 py-1 rounded-lg"
+                    className="bg-[#fef3c7] text-[#b45309] text-xs font-semibold px-2.5 py-1 rounded-lg border border-[#fed7aa]"
                   >
                     {fac}
                   </span>
@@ -314,9 +387,15 @@ export const LiveLocationScreen: React.FC<LiveLocationScreenProps> = ({
               </div>
             </div>
 
+            <div className="bg-[#eff6ff] border border-[#bfdbfe] rounded-xl p-3">
+              <p className="text-xs text-[#0c4a6e] leading-relaxed">
+                <span className="font-bold">💡 팁:</span> 남해고속도로는 경치가 아름답기로 유명합니다. 휴게소에서 바다 풍경을 감상해보세요!
+              </p>
+            </div>
+
             <button
               onClick={() => setShowRestAreaModal(false)}
-              className="w-full py-3 bg-[#0052cc] text-white font-bold rounded-xl mt-2"
+              className="w-full py-3 bg-[#f59e0b] text-white font-bold rounded-xl hover:bg-[#d97706] transition-colors"
             >
               확인
             </button>

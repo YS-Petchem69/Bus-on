@@ -1,6 +1,9 @@
 import React, { useState } from 'react';
-import { TabType, TaxiOption } from '../types';
-import { HOTLINK_IMAGES, DEFAULT_TAXI_OPTIONS, SUBWAY_INFO } from '../data/mockData';
+import { TabType, TaxiOption, TaxiDriver } from '../types';
+import { HOTLINK_IMAGES, DEFAULT_TAXI_OPTIONS, SUBWAY_INFO, TAXI_DRIVERS } from '../data/mockData';
+import { MapContainer, TileLayer, Polyline, Marker, Popup } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
 
 interface TransferScreenProps {
   onNavigate: (tab: TabType) => void;
@@ -12,8 +15,11 @@ export const TransferScreen: React.FC<TransferScreenProps> = ({ onNavigate }) =>
   const [isCallingTaxi, setIsCallingTaxi] = useState(false);
   const [taxiDispatched, setTaxiDispatched] = useState(false);
   const [showTaxiModal, setShowTaxiModal] = useState(false);
+  const [selectedDriver, setSelectedDriver] = useState<TaxiDriver | null>(null);
 
   const handleCallTaxi = () => {
+    const randomDriver = TAXI_DRIVERS[Math.floor(Math.random() * TAXI_DRIVERS.length)];
+    setSelectedDriver(randomDriver);
     setIsCallingTaxi(true);
     setShowTaxiModal(true);
     setTimeout(() => {
@@ -140,38 +146,116 @@ export const TransferScreen: React.FC<TransferScreenProps> = ({ onNavigate }) =>
             </div>
           </div>
 
-          {/* Map Preview Area with Stylized Terminal & Route Overlay */}
-          <div className="relative h-44 w-full bg-[#f2f4f7] rounded-xl overflow-hidden shadow-inner border border-gray-100">
-            <div
-              className="absolute inset-0 bg-cover bg-center"
-              style={{ backgroundImage: `url('${HOTLINK_IMAGES.transferMapBg}')` }}
-            ></div>
-
-            {/* Visual Markers & Dotted Line */}
-            <div className="absolute inset-0 p-3 pointer-events-none">
-              {/* Terminal Taxi Stop Badge */}
-              <div className="absolute top-6 left-6 bg-[#003d9b] text-white px-2 py-1 rounded-lg shadow-md flex items-center gap-1 text-[11px] font-bold">
-                <span className="material-symbols-outlined text-[13px]">directions_bus</span>
-                <span>하차장</span>
-              </div>
-
-              {/* Dotted Walking Route SVG */}
-              <svg className="absolute inset-0 w-full h-full" xmlns="http://www.w3.org/2000/svg">
-                <path
-                  d="M 50 45 L 95 90 L 170 90 L 250 120"
-                  fill="transparent"
-                  stroke="#0052cc"
-                  strokeDasharray="6,4"
-                  strokeWidth="3.5"
+          {/* Map Preview Area with Interactive Map */}
+          <div className="relative h-44 w-full rounded-xl overflow-hidden shadow-md border border-gray-200">
+            {selectedTaxiDest.destination === '사직야구장' && (
+              <MapContainer
+                center={[35.1790, 129.0785]}
+                zoom={13}
+                style={{ width: '100%', height: '100%' }}
+              >
+                <TileLayer
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  attribution='&copy; OpenStreetMap contributors'
                 />
-              </svg>
-
-              {/* Destination Pin */}
-              <div className="absolute bottom-6 right-6 bg-[#ba1a1a] text-white px-2.5 py-1 rounded-lg shadow-md flex items-center gap-1 text-[11px] font-bold">
-                <span className="material-symbols-outlined text-[13px]">sports_baseball</span>
-                <span>{selectedTaxiDest.destination}</span>
-              </div>
-            </div>
+                {/* 부산서부버스터미널 */}
+                <Marker position={[35.163307, 129.095446]}>
+                  <Popup>부산서부버스터미널 (시작)</Popup>
+                </Marker>
+                {/* 사직야구장 */}
+                <Marker position={[35.194200, 129.061400]}>
+                  <Popup>사직야구장 (목적지)</Popup>
+                </Marker>
+                {/* 택시 경로 */}
+                <Polyline
+                  positions={[[35.163307, 129.095446], [35.1790, 129.0785], [35.194200, 129.061400]]}
+                  color="#fbbf24"
+                  weight={3}
+                  opacity={0.7}
+                />
+              </MapContainer>
+            )}
+            {selectedTaxiDest.destination === '해운대 해수욕장' && (
+              <MapContainer
+                center={[35.1600, 129.1400]}
+                zoom={11}
+                style={{ width: '100%', height: '100%' }}
+              >
+                <TileLayer
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  attribution='&copy; OpenStreetMap contributors'
+                />
+                {/* 부산서부버스터미널 */}
+                <Marker position={[35.163307, 129.095446]}>
+                  <Popup>부산서부버스터미널 (시작)</Popup>
+                </Marker>
+                {/* 해운대 해수욕장 */}
+                <Marker position={[35.1590, 129.1600]}>
+                  <Popup>해운대 해수욕장 (목적지)</Popup>
+                </Marker>
+                {/* 택시 경로 */}
+                <Polyline
+                  positions={[[35.163307, 129.095446], [35.1450, 129.1200], [35.1590, 129.1600]]}
+                  color="#fbbf24"
+                  weight={3}
+                  opacity={0.7}
+                />
+              </MapContainer>
+            )}
+            {selectedTaxiDest.destination === '부산역 (KTX)' && (
+              <MapContainer
+                center={[35.1380, 129.0680]}
+                zoom={13}
+                style={{ width: '100%', height: '100%' }}
+              >
+                <TileLayer
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  attribution='&copy; OpenStreetMap contributors'
+                />
+                {/* 부산서부버스터미널 */}
+                <Marker position={[35.163307, 129.095446]}>
+                  <Popup>부산서부버스터미널 (시작)</Popup>
+                </Marker>
+                {/* 부산역 */}
+                <Marker position={[35.1131, 129.0412]}>
+                  <Popup>부산역 (KTX) (목적지)</Popup>
+                </Marker>
+                {/* 택시 경로 */}
+                <Polyline
+                  positions={[[35.163307, 129.095446], [35.1380, 129.0750], [35.1131, 129.0412]]}
+                  color="#fbbf24"
+                  weight={3}
+                  opacity={0.7}
+                />
+              </MapContainer>
+            )}
+            {selectedTaxiDest.destination === '서면 젊음의 거리' && (
+              <MapContainer
+                center={[35.1550, 129.0850]}
+                zoom={12}
+                style={{ width: '100%', height: '100%' }}
+              >
+                <TileLayer
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  attribution='&copy; OpenStreetMap contributors'
+                />
+                {/* 부산서부버스터미널 */}
+                <Marker position={[35.163307, 129.095446]}>
+                  <Popup>부산서부버스터미널 (시작)</Popup>
+                </Marker>
+                {/* 서면 */}
+                <Marker position={[35.1560, 129.0757]}>
+                  <Popup>서면 젊음의 거리 (목적지)</Popup>
+                </Marker>
+                {/* 택시 경로 */}
+                <Polyline
+                  positions={[[35.163307, 129.095446], [35.1600, 129.0850], [35.1560, 129.0757]]}
+                  color="#fbbf24"
+                  weight={3}
+                  opacity={0.7}
+                />
+              </MapContainer>
+            )}
           </div>
 
           {/* Estimated Fare & Distance Summary */}
@@ -217,6 +301,36 @@ export const TransferScreen: React.FC<TransferScreenProps> = ({ onNavigate }) =>
             <span className="text-xs font-bold text-[#0052cc] bg-[#dae2ff] px-2.5 py-1 rounded-full">
               도보 {SUBWAY_INFO.walkTimeMinutes}분 연결
             </span>
+          </div>
+
+          {/* Interactive Subway Map */}
+          <div className="relative h-56 w-full rounded-xl overflow-hidden shadow-md border border-gray-200">
+            <MapContainer
+              center={[35.1400, 129.0450]}
+              zoom={13}
+              style={{ width: '100%', height: '100%' }}
+            >
+              <TileLayer
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                attribution='&copy; OpenStreetMap contributors'
+              />
+              {/* 부산서부버스터미널 */}
+              <Marker position={[35.163307, 129.095446]}>
+                <Popup>부산서부버스터미널</Popup>
+              </Marker>
+              {/* 지하철역 (광안역) */}
+              <Marker position={[35.1380, 129.0320]}>
+                <Popup>광안역 (1호선)</Popup>
+              </Marker>
+              {/* 도보 경로 */}
+              <Polyline
+                positions={[[35.163307, 129.095446], [35.1500, 129.0650], [35.1380, 129.0320]]}
+                color="#0052cc"
+                weight={3}
+                opacity={0.6}
+                dashArray="8,4"
+              />
+            </MapContainer>
           </div>
 
           <div className="bg-[#f2f4f7] rounded-xl p-4 flex flex-col gap-2">
@@ -276,6 +390,28 @@ export const TransferScreen: React.FC<TransferScreenProps> = ({ onNavigate }) =>
             <span className="text-xs text-gray-500">정류장 ID: 08-012</span>
           </div>
 
+          {/* Interactive Bus Stop Map */}
+          <div className="relative h-56 w-full rounded-xl overflow-hidden shadow-md border border-gray-200">
+            <MapContainer
+              center={[35.163307, 129.095446]}
+              zoom={14}
+              style={{ width: '100%', height: '100%' }}
+            >
+              <TileLayer
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                attribution='&copy; OpenStreetMap contributors'
+              />
+              {/* 부산서부버스터미널 */}
+              <Marker position={[35.163307, 129.095446]}>
+                <Popup>부산서부버스터미널</Popup>
+              </Marker>
+              {/* 시내버스 정류장 표시 */}
+              <Marker position={[35.1635, 129.0955]}>
+                <Popup>시내버스 정류장 (50번, 148번, 1002번)</Popup>
+              </Marker>
+            </MapContainer>
+          </div>
+
           <div className="flex flex-col gap-3">
             {[
               { num: '50번', type: '일반', dest: '부산대학교 · 온천장', min: 4, remainStops: 2 },
@@ -314,7 +450,7 @@ export const TransferScreen: React.FC<TransferScreenProps> = ({ onNavigate }) =>
 
       {/* Taxi Dispatch Simulation Modal */}
       {showTaxiModal && (
-        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fadeIn">
+        <div className="fixed inset-0 z-[9999] bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-0 sm:p-4 animate-fadeIn">
           <div className="bg-white w-full max-w-md rounded-t-3xl sm:rounded-2xl p-6 shadow-2xl flex flex-col gap-4 animate-slideUp">
             {isCallingTaxi ? (
               <div className="py-8 flex flex-col items-center justify-center text-center gap-4">
@@ -344,11 +480,11 @@ export const TransferScreen: React.FC<TransferScreenProps> = ({ onNavigate }) =>
 
                 <div className="bg-[#f2f4f7] rounded-2xl p-4 flex items-center justify-between">
                   <div>
-                    <span className="text-xs text-gray-500 font-semibold">부산34바 8291 (카카오T)</span>
+                    <span className="text-xs text-gray-500 font-semibold">{selectedDriver?.platePrefix} {selectedDriver?.plateNumber} (카카오T)</span>
                     <h4 className="font-display font-bold text-base text-[#191c1e] mt-0.5">
-                      기아 K8 하이브리드
+                      {selectedDriver?.carBrand} {selectedDriver?.carModel}
                     </h4>
-                    <p className="text-xs text-[#003d9b] font-semibold mt-1">기사님: 이원석 님 (★ 4.9)</p>
+                    <p className="text-xs text-[#003d9b] font-semibold mt-1">기사님: {selectedDriver?.name} 님 (★ {selectedDriver?.rating})</p>
                   </div>
                   <div className="text-right">
                     <span className="text-xs text-gray-500">도착 예정</span>

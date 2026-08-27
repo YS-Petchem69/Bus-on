@@ -23,6 +23,7 @@ export default function App() {
   const [isNotificationOpen, setIsNotificationOpen] = useState(false);
   const [quickOrigin, setQuickOrigin] = useState('서울(경부)');
   const [quickDestination, setQuickDestination] = useState('부산(노포)');
+  const [selectedPromoId, setSelectedPromoId] = useState<string | null>(null);
 
   const handleBookSuccess = (newTicket: Ticket) => {
     setTickets((prev) => [newTicket, ...prev]);
@@ -82,6 +83,10 @@ export default function App() {
               setCurrentTab('tickets');
             }}
             onSelectQuickRoute={handleSelectQuickRoute}
+            onPromoBooking={(promoId) => {
+              setSelectedPromoId(promoId);
+              setCurrentTab('search');
+            }}
           />
         )}
 
@@ -93,6 +98,8 @@ export default function App() {
             onOpenTicketQr={() => setCurrentTab('tickets')}
             initialOrigin={quickOrigin}
             initialDestination={quickDestination}
+            selectedPromoId={selectedPromoId}
+            onPromoSelected={setSelectedPromoId}
           />
         )}
 
