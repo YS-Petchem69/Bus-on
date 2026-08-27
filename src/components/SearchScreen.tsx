@@ -607,7 +607,7 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({
               </div>
               <div className="flex items-center gap-3">
                 <button
-                  disabled={adultCount <= 1}
+                  disabled={adultCount <= 0}
                   onClick={() => setAdultCount(adultCount - 1)}
                   className="w-8 h-8 rounded-full border border-gray-300 flex items-center justify-center disabled:opacity-30"
                 >
