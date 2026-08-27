@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { BusType, BusSchedule, Terminal, Ticket, TabType } from '../types';
-import { TERMINALS, REGIONS, MOCK_BUS_SCHEDULES, HOTLINK_IMAGES, PROMO_EVENTS } from '../data/mockData';
+import { TERMINALS, REGIONS, MOCK_BUS_SCHEDULES, HOTLINK_IMAGES, PROMO_EVENTS, SAVED_ROUTES } from '../data/mockData';
 
 interface SearchScreenProps {
   onNavigate: (tab: TabType) => void;
@@ -45,6 +45,10 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({
   const [selectedCoupon, setSelectedCoupon] = useState<string | null>(null);
   const [showCouponList, setShowCouponList] = useState(false);
 
+  // 자주 찾는 노선
+  const [savedRoutes, setSavedRoutes] = useState(SAVED_ROUTES);
+  const [showSavedRoutesOnly, setShowSavedRoutesOnly] = useState(false);
+
   // 쿠폰 데이터
   const availableCoupons = [
     { id: 'c1', title: '15% 할인', code: 'SAVE15' },
@@ -56,6 +60,13 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({
     const temp = origin;
     setOrigin(destination);
     setDestination(temp);
+  };
+
+  const handleSelectSavedRoute = (routeOrigin: string, routeDestination: string) => {
+    setOrigin(routeOrigin);
+    setDestination(routeDestination);
+    setHasSearched(false);
+    setShowSavedRoutesOnly(false);
   };
 
   const filteredTerminals = TERMINALS.filter((t) => {
@@ -252,6 +263,42 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({
           버스 조회하기
         </button>
       </section>
+
+      {/* 자주 찾는 노선 */}
+      {!hasSearched && savedRoutes.filter(r => r.isFavorite).length > 0 && (
+        <section className="flex flex-col gap-3 animate-fadeIn">
+          <div className="flex items-center justify-between px-1">
+            <h3 className="font-display font-bold text-base text-[#191c1e] flex items-center gap-2">
+              <span className="material-symbols-outlined text-lg text-[#0052cc]">star</span>
+              자주 찾는 노선
+            </h3>
+            <span className="text-[10px] text-[#737685] font-semibold">{savedRoutes.filter(r => r.isFavorite).length}개</span>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            {savedRoutes
+              .filter(r => r.isFavorite)
+              .sort((a, b) => new Date(b.lastSearchedDate).getTime() - new Date(a.lastSearchedDate).getTime())
+              .slice(0, 5)
+              .map((route) => (
+                <button
+                  key={route.id}
+                  onClick={() => handleSelectSavedRoute(route.origin, route.destination)}
+                  className="p-3 bg-gradient-to-r from-[#f2f4f7] to-[#eceef1] hover:from-[#dae2ff] hover:to-[#eceef1] rounded-lg flex items-center justify-between transition-all"
+                >
+                  <div className="flex items-center gap-3">
+                    <span className="material-symbols-outlined text-[#0052cc]">favorite</span>
+                    <div className="text-left">
+                      <p className="text-xs font-semibold text-[#191c1e]">{route.origin} → {route.destination}</p>
+                      <p className="text-[10px] text-[#737685]">최근: {route.lastSearchedDate} · 검색: {route.searchCount}회</p>
+                    </div>
+                  </div>
+                  <span className="material-symbols-outlined text-[#0052cc] text-lg">arrow_forward</span>
+                </button>
+              ))}
+          </div>
+        </section>
+      )}
 
       {/* Bus Schedule Search Results */}
       {hasSearched && (
@@ -665,6 +712,27 @@ export const SearchScreen: React.FC<SearchScreenProps> = ({
                   <span className="text-[10px] font-bold text-[#0052cc]">할인쿠폰</span>
                 </button>
               </div>
+
+              {/* 이 노선 저장 버튼 */}
+              <button
+                onClick={() => {
+                  const existingRoute = savedRoutes.find(r => r.origin === origin && r.destination === destination);
+                  if (existingRoute) {
+                    setSavedRoutes(savedRoutes.map(r => 
+                      r.id === existingRoute.id 
+                        ? { ...r, isFavorite: !r.isFavorite }
+                        : r
+                    ));
+                  }
+                }}
+                className="w-full px-4 py-2 bg-[#f2f4f7] hover:bg-[#dae2ff] text-[#0052cc] font-semibold text-xs rounded-lg flex items-center justify-center gap-2 transition-all mb-2"
+              >
+                <span className="material-symbols-outlined text-base">
+                  {savedRoutes.find(r => r.origin === origin && r.destination === destination)?.isFavorite ? 'favorite' : 'favorite_border'}
+                </span>
+                이 노선 저장하기
+              </button>
+
               <button
                 disabled={!selectedSeat}
                 onClick={handleConfirmBooking}

@@ -1,4 +1,4 @@
-import { Terminal, BusSchedule, Ticket, LiveLocationData, TaxiOption, SubwayRoute } from '../types';
+import { Terminal, BusSchedule, Ticket, LiveLocationData, TaxiOption, SubwayRoute, SavedRoute } from '../types';
 
 export const TERMINALS: Terminal[] = [
   // 서울 (5개)
@@ -392,5 +392,63 @@ export const PROMO_EVENTS: PromoEvent[] = [
       '직장인과 학생을 위한 시간대별 특가',
       '당일 예매도 가능 (시간대별로 상이)',
     ],
+  },
+];
+
+export const SAVED_ROUTES: SavedRoute[] = [
+  {
+    id: 'sr1',
+    origin: '서울(경부)',
+    originTerminalId: 't1',
+    destination: '부산(노포)',
+    destinationTerminalId: 't4',
+    isFavorite: true,
+    searchCount: 45,
+    lastSearchedDate: '2024-10-24',
+    createdDate: '2024-09-15',
+  },
+  {
+    id: 'sr2',
+    origin: '서울(경부)',
+    originTerminalId: 't1',
+    destination: '부산사상(서부)',
+    destinationTerminalId: 't5',
+    isFavorite: true,
+    searchCount: 32,
+    lastSearchedDate: '2024-10-23',
+    createdDate: '2024-09-20',
+  },
+  {
+    id: 'sr3',
+    origin: '센트럴시티(호남)',
+    originTerminalId: 't2',
+    destination: '광주(유·스퀘어)',
+    destinationTerminalId: 't6',
+    isFavorite: true,
+    searchCount: 28,
+    lastSearchedDate: '2024-10-22',
+    createdDate: '2024-10-01',
+  },
+  {
+    id: 'sr4',
+    origin: '동서울',
+    originTerminalId: 't3',
+    destination: '대전복합',
+    destinationTerminalId: 't8',
+    isFavorite: false,
+    searchCount: 12,
+    lastSearchedDate: '2024-10-10',
+    createdDate: '2024-10-05',
+  },
+  {
+    id: 'sr5',
+    origin: '서울(경부)',
+    originTerminalId: 't1',
+    destination: '강릉',
+    destinationTerminalId: 't9',
+    isFavorite: true,
+    searchCount: 18,
+    lastSearchedDate: '2024-10-21',
+    createdDate: '2024-09-25',
   },
 ];

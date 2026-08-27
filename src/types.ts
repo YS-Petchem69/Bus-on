@@ -104,3 +104,15 @@ export interface SubwayRoute {
   walkTimeMinutes: number;
   majorDestinations: { name: string; durationMinutes: number }[];
 }
+
+export interface SavedRoute {
+  id: string;
+  origin: string;
+  originTerminalId: string;
+  destination: string;
+  destinationTerminalId: string;
+  isFavorite: boolean;
+  searchCount: number;
+  lastSearchedDate: string;
+  createdDate: string;
+}

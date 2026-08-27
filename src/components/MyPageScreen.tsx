@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { TabType } from '../types';
+import { SAVED_ROUTES, TERMINALS } from '../data/mockData';
 
 interface MyPageScreenProps {
   onNavigate: (tab: TabType) => void;
@@ -27,6 +28,8 @@ export const MyPageScreen: React.FC<MyPageScreenProps> = ({ onNavigate, onSelect
   const [showFAQModal, setShowFAQModal] = useState(false);
   const [showRefundModal, setShowRefundModal] = useState(false);
   const [showVersionModal, setShowVersionModal] = useState(false);
+  const [showSavedRoutesModal, setShowSavedRoutesModal] = useState(false);
+  const [savedRoutes, setSavedRoutes] = useState(SAVED_ROUTES);
 
   const handleSaveProfile = () => {
     setUserName(editName);
@@ -149,32 +152,40 @@ export const MyPageScreen: React.FC<MyPageScreenProps> = ({ onNavigate, onSelect
         {/* 3. Frequent Routes */}
         <section className="bg-white rounded-2xl p-5 border border-[#e0e3e6]/80 shadow-2xs flex flex-col gap-3">
           <div className="flex justify-between items-center">
-            <h3 className="font-display font-bold text-base text-[#191c1e]">자주 찾는 노선</h3>
-            <span className="text-xs text-[#0052cc] font-semibold">관리</span>
+            <h3 className="font-display font-bold text-base text-[#191c1e]">
+              <span className="material-symbols-outlined inline-block align-text-bottom mr-1 text-[20px]">favorite</span>
+              자주 찾는 노선
+            </h3>
+            <button
+              onClick={() => setShowSavedRoutesModal(true)}
+              className="text-xs text-[#0052cc] font-semibold hover:text-[#003d9b]"
+            >
+              관리
+            </button>
           </div>
 
           <div className="flex flex-col gap-2">
-            {[
-              { origin: '서울(경부)', dest: '부산(노포)', grade: '프리미엄' },
-              { origin: '센트럴시티(호남)', dest: '광주(유·스퀘어)', grade: '우등' },
-              { origin: '동서울', dest: '강릉', grade: '우등' },
-            ].map((r, i) => (
-              <button
-                key={i}
-                onClick={() => {
-                  onSelectRoute(r.origin, r.dest);
-                  onNavigate('search');
-                }}
-                className="p-3 bg-[#f2f4f7] hover:bg-[#dae2ff]/40 rounded-xl flex items-center justify-between transition-colors text-left"
-              >
-                <div className="flex items-center gap-2">
-                  <span className="text-xs font-bold text-gray-800">
-                    {r.origin.split('(')[0]} → {r.dest.split('(')[0]}
-                  </span>
-                  <span className="text-[10px] bg-white text-[#003d9b] px-1.5 py-0.5 rounded font-semibold border border-blue-100">
-                    {r.grade}
-                  </span>
-                </div>
+            {savedRoutes
+              .filter(r => r.isFavorite)
+              .sort((a, b) => new Date(b.lastSearchedDate).getTime() - new Date(a.lastSearchedDate).getTime())
+              .slice(0, 3)
+              .map((route) => (
+                <button
+                  key={route.id}
+                  onClick={() => {
+                    onSelectRoute(route.origin, route.destination);
+                    onNavigate('search');
+                  }}
+                  className="p-3 bg-[#f2f4f7] hover:bg-[#dae2ff]/40 rounded-xl flex items-center justify-between transition-colors text-left"
+                >
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs font-bold text-gray-800">
+                      {route.origin.split('(')[0]} → {route.destination.split('(')[0]}
+                    </span>
+                    <span className="text-[10px] bg-white text-[#003d9b] px-1.5 py-0.5 rounded font-semibold border border-blue-100">
+                      {route.searchCount}회
+                    </span>
+                  </div>
                 <span className="text-xs font-bold text-[#0052cc] flex items-center gap-0.5">
                   예매하기
                   <span className="material-symbols-outlined text-sm">chevron_right</span>
@@ -630,6 +641,70 @@ export const MyPageScreen: React.FC<MyPageScreenProps> = ({ onNavigate, onSelect
                 이미 최신
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Saved Routes Management Modal */}
+      {showSavedRoutesModal && (
+        <div className="fixed inset-0 bg-black/30 flex items-center justify-center z-[9999] p-4">
+          <div className="bg-white w-full max-w-lg rounded-3xl p-6 max-h-[80vh] flex flex-col animate-slideUp shadow-2xl">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="font-display font-bold text-lg text-[#191c1e]">자주 찾는 노선 관리</h2>
+              <button
+                onClick={() => setShowSavedRoutesModal(false)}
+                className="p-1 hover:bg-gray-100 rounded-full"
+              >
+                <span className="material-symbols-outlined text-gray-400">close</span>
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto space-y-2">
+              {savedRoutes.length > 0 ? (
+                savedRoutes.map((route) => (
+                  <div
+                    key={route.id}
+                    className="p-3 bg-[#f2f4f7] rounded-xl flex items-center justify-between hover:bg-[#dae2ff]/40 transition-colors"
+                  >
+                    <div className="flex-1">
+                      <p className="text-xs font-bold text-gray-800">
+                        {route.origin} → {route.destination}
+                      </p>
+                      <p className="text-[10px] text-gray-500">
+                        검색: {route.searchCount}회 · 최근: {route.lastSearchedDate}
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => {
+                        setSavedRoutes(
+                          savedRoutes.map(r =>
+                            r.id === route.id ? { ...r, isFavorite: !r.isFavorite } : r
+                          )
+                        );
+                      }}
+                      className="p-2 hover:bg-white rounded-lg transition-colors"
+                      title={route.isFavorite ? '즐겨찾기 제거' : '즐겨찾기 추가'}
+                    >
+                      <span className="material-symbols-outlined text-lg text-[#0052cc]">
+                        {route.isFavorite ? 'favorite' : 'favorite_border'}
+                      </span>
+                    </button>
+                  </div>
+                ))
+              ) : (
+                <div className="py-8 text-center">
+                  <p className="text-sm text-gray-500 mb-2">저장된 노선이 없습니다.</p>
+                  <p className="text-xs text-gray-400">검색 화면에서 노선을 저장해보세요!</p>
+                </div>
+              )}
+            </div>
+
+            <button
+              onClick={() => setShowSavedRoutesModal(false)}
+              className="w-full mt-4 py-3 bg-[#0052cc] text-white font-semibold rounded-xl hover:bg-[#003d9b] transition-colors"
+            >
+              닫기
+            </button>
           </div>
         </div>
       )}
